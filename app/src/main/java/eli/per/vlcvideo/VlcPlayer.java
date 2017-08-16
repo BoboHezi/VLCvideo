@@ -15,8 +15,12 @@ import org.videolan.libvlc.IVideoPlayer;
 import org.videolan.libvlc.LibVLC;
 import org.videolan.libvlc.Media;
 import org.videolan.libvlc.MediaList;
+import org.videolan.libvlc.Util;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class VlcPlayer implements SurfaceHolder.Callback{
 
@@ -30,7 +34,7 @@ public class VlcPlayer implements SurfaceHolder.Callback{
     private LibVLC libVLC;
     private int viewWidth;
     private int viewHeight;
-    private boolean isFirst = true;
+    private boolean isRecording = false;
     private static final int VideoSizeChanged = -1;
     private static final String TAG = "VlcPlayer";
 
@@ -50,8 +54,7 @@ public class VlcPlayer implements SurfaceHolder.Callback{
     public void createPlayer() {
         releasePlayer();
         try {
-            libVLC = new LibVLC();
-            libVLC.setHardwareAcceleration(LibVLC.HW_ACCELERATION_DISABLED);
+            libVLC = Util.getLibVlcInstance();
             libVLC.setSubtitlesEncoding("");
             libVLC.setAout(LibVLC.AOUT_OPENSLES);
             libVLC.setTimeStretching(true);
@@ -118,11 +121,42 @@ public class VlcPlayer implements SurfaceHolder.Callback{
     }
 
     /**
-     * 获取当前帧
-     * @return
+     * 截图
      */
-    public byte[] getCurrentFrame() {
-        return libVLC.getThumbnail(LibVLC.PathToURI(url), viewWidth, viewHeight);
+    public void snapShot() {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
+            String path = "/sdcard/1/IMG_" + sdf.format(new Date()) + ".png";
+            File file = new File(path);
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+
+            if (viewWidth > 0 && viewHeight > 0) {
+                if(!libVLC.takeSnapShot(path, viewWidth, viewHeight)) {
+                    file.delete();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 录像
+     */
+    public void screenRecord() {
+        try {
+            if (libVLC.videoIsRecording()) {
+                libVLC.videoRecordStop();
+            } else {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
+                String path = "/sdcard/1/VID_" + sdf.format(new Date());
+                libVLC.videoRecordStart(path);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -173,10 +207,6 @@ public class VlcPlayer implements SurfaceHolder.Callback{
             Log.e(TAG, "setSurfaceSize: \nwidth:" + width + "\theight:" + height + "\nvisible_width:" + visible_width + "\nvisible_height:" + visible_height);
             Message msg = Message.obtain(handler, VideoSizeChanged, width, height);
             msg.sendToTarget();
-        }
-
-        @Override
-        public void eventHardwareAccelerationError() {
         }
     };
 

@@ -93,8 +93,6 @@ public class HWDecoderUtil {
      * (Always return Dec.ALL after Android 4.3)
      */
     public static Decoder getDecoderFromDevice() {
-        if (LibVlcUtil.isJellyBeanMR2OrLater())
-            return Decoder.ALL;
         for (DecoderBySOC decBySOC : sDecoderBySOCList) {
             String prop = sSystemPropertyMap.get(decBySOC.key);
             if (prop == null) {

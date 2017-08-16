@@ -32,16 +32,16 @@ public class MediaList {
 
     /* Since the libvlc_media_t is not created until the media plays, we have
      * to cache them here. */
-    private static class MediaHolder {
+    private class MediaHolder {
         Media m;
         boolean noVideo; // default false
-        boolean noHardwareAcceleration; // default false
+        boolean noOmx; // default false
 
         public MediaHolder(Media media) {
-            m = media; noVideo = false; noHardwareAcceleration = false;
+            m = media; noVideo = false; noOmx = false;
         }
-        public MediaHolder(Media m_, boolean noVideo_, boolean noHardwareAcceleration_) {
-            m = m_; noVideo = noVideo_; noHardwareAcceleration = noHardwareAcceleration_;
+        public MediaHolder(Media m_, boolean noVideo_, boolean noOmx_) {
+            m = m_; noVideo = noVideo_; noOmx = noOmx_;
         }
     }
 
@@ -73,8 +73,8 @@ public class MediaList {
     public void add(Media media, boolean noVideo) {
         add(media, noVideo, false);
     }
-    public void add(Media media, boolean noVideo, boolean noHardwareAcceleration) {
-        mInternalList.add(new MediaHolder(media, noVideo, noHardwareAcceleration));
+    public void add(Media media, boolean noVideo, boolean noOmx) {
+        mInternalList.add(new MediaHolder(media, noVideo, noOmx));
         signal_list_event(EventHandler.CustomMediaListItemAdded, mInternalList.size() - 1, media.getLocation());
     }
 
@@ -134,47 +134,12 @@ public class MediaList {
         signal_list_event(EventHandler.CustomMediaListItemAdded, position, media.getLocation());
     }
 
-    /**
-     * Move a media from one position to another
-     *
-     * @param startPosition start position
-     * @param endPosition end position
-     * @throws IndexOutOfBoundsException
-     */
-    public void move(int startPosition, int endPosition) {
-        if (!(isValid(startPosition)
-              && endPosition >= 0 && endPosition <= mInternalList.size()))
-            throw new IndexOutOfBoundsException("Indexes out of range");
-
-        MediaHolder toMove = mInternalList.get(startPosition);
-        mInternalList.remove(startPosition);
-        if (startPosition >= endPosition)
-            mInternalList.add(endPosition, toMove);
-        else
-            mInternalList.add(endPosition - 1, toMove);
-        Bundle b = new Bundle();
-        b.putInt("index_before", startPosition);
-        b.putInt("index_after", endPosition);
-        mEventHandler.callback(EventHandler.CustomMediaListItemMoved, b);
-    }
-
     public void remove(int position) {
         if (!isValid(position))
             return;
         String uri = mInternalList.get(position).m.getLocation();
         mInternalList.remove(position);
         signal_list_event(EventHandler.CustomMediaListItemDeleted, position, uri);
-    }
-
-    public void remove(String location) {
-        for (int i = 0; i < mInternalList.size(); ++i) {
-            String uri = mInternalList.get(i).m.getLocation();
-            if (uri.equals(location)) {
-                mInternalList.remove(i);
-                signal_list_event(EventHandler.CustomMediaListItemDeleted, i, uri);
-                i--;
-            }
-        }
     }
 
     public int size() {
@@ -198,15 +163,34 @@ public class MediaList {
     }
 
     public String[] getMediaOptions(int position) {
-        boolean noHardwareAcceleration = false;
+        boolean noOmx = !mLibVLC.useIOMX();
         boolean noVideo = false;
         if (isValid(position))
         {
-            noHardwareAcceleration = mInternalList.get(position).noHardwareAcceleration;
+            if (!noOmx)
+                noOmx = mInternalList.get(position).noOmx;
             noVideo = mInternalList.get(position).noVideo;
         }
+        ArrayList<String> options = new ArrayList<String>();
 
-        return mLibVLC.getMediaOptions(noHardwareAcceleration, noVideo);
+        if (!noOmx) {
+            /*
+             * Set higher caching values if using iomx decoding, since some omx
+             * decoders have a very high latency, and if the preroll data isn't
+             * enough to make the decoder output a frame, the playback timing gets
+             * started too soon, and every decoded frame appears to be too late.
+             * On Nexus One, the decoder latency seems to be 25 input packets
+             * for 320x170 H.264, a few packets less on higher resolutions.
+             * On Nexus S, the decoder latency seems to be about 7 packets.
+             */
+            options.add(":file-caching=1500");
+            options.add(":network-caching=1500");
+            options.add(":codec=mediacodec,iomx,all");
+        }
+        if (noVideo)
+            options.add(":no-video");
+
+        return options.toArray(new String[options.size()]);
     }
 
     public EventHandler getEventHandler() {

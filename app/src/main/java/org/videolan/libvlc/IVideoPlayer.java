@@ -31,9 +31,4 @@ public interface IVideoPlayer {
      * @param sar_den Surface aspect ratio denominator
      */
     void setSurfaceSize(int width, int height, int visible_width, int visible_height, int sar_num, int sar_den);
-
-    /**
-     * Called in case of hardware acceleration error
-     */
-    public void eventHardwareAccelerationError();
 }

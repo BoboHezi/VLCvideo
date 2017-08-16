@@ -2,6 +2,7 @@ package eli.per.vlcvideo;
 
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
@@ -11,6 +12,11 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.Toast;
+
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
@@ -21,6 +27,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Button playerControl;
     private Button switchScreen;
     private Button screenShot;
+    private Button screenRecord;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +42,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         screenShot = (Button) findViewById(R.id.screenshot);
         screenShot.setOnClickListener(this);
+
+        screenRecord = (Button) findViewById(R.id.screenrecord);
+        screenRecord.setOnClickListener(this);
 
         surfaceView = (SurfaceView) findViewById(R.id.surface);
         String url = "/sdcard/1/video.mov";
@@ -95,7 +105,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.screenshot:
+                vlcPlayer.snapShot();
+                break;
 
+            case R.id.screenrecord:
+                vlcPlayer.screenRecord();
                 break;
         }
     }
